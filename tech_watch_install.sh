@@ -133,10 +133,15 @@ services:
 
     command: -H unix:///var/run/docker.sock
 
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.portainer.rule=Host(`portainer.${DOMAIN}`)
-      - traefik.http.routers.portainer.tls.certresolver=le
+  labels:
+    - traefik.enable=true
+
+    - traefik.http.routers.portainer.rule=Host(`portainer.${DOMAIN}`)
+    - traefik.http.routers.portainer.entrypoints=websecure
+    - traefik.http.routers.portainer.tls=true
+    - traefik.http.routers.portainer.tls.certresolver=le
+
+  - traefik.http.services.portainer.loadbalancer.server.port=9000
 
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
