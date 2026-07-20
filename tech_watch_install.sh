@@ -150,7 +150,7 @@ services:
 
     labels:
       - traefik.enable=true
-      - traefik.http.routers.site.rule=Host(`veille.${DOMAIN}`)
+      - traefik.http.routers.site.rule=Host(`watch.${DOMAIN}`)
       - traefik.http.routers.site.tls.certresolver=le
 
     volumes:
@@ -218,7 +218,7 @@ echo "Password   : $POSTGRES_PASSWORD"
 echo ""
 echo "Configure maintenant tes DNS :"
 echo ""
-echo "veille.$DOMAIN"
+echo "watch.$DOMAIN"
 echo "rss.$DOMAIN"
 echo "n8n.$DOMAIN"
 echo "portainer.$DOMAIN"
