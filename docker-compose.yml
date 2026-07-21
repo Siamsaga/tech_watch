@@ -114,7 +114,7 @@ services:
 
     - traefik.http.routers.dashboard.service=api@internal
 
-    - traefik.http.middlewares.dashboard-auth.basicauth.users=admin:HASH_ICI
+    - traefik.http.middlewares.dashboard-auth.basicauth.users=siamsaga:$2y$05$1DVAXGk6lHws177qUKPHGOwX7m.a6aQNIF4hDal3Btqz7ff9IpM/u
 
     - traefik.http.routers.dashboard.middlewares=dashboard-auth
 
