@@ -39,6 +39,8 @@ services:
       DB_POSTGRESDB_DATABASE: ${POSTGRES_DB}
       DB_POSTGRESDB_USER: ${POSTGRES_USER}
       DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+      NODE_FUNCTION_ALLOW_BUILTIN: fs,path
+      N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE: true
 
     labels:
       - traefik.enable=true
@@ -50,6 +52,7 @@ services:
 
     volumes:
       - ./n8n:/home/node/.n8n
+      - /opt/tech_watch/website/site:/site
 
   portainer:
 
@@ -85,8 +88,8 @@ services:
       - traefik.http.routers.site.tls.certresolver=le
 
     volumes:
+      #- /opt/tech_watch/website/site:/usr/share/nginx/html
       - ./public:/usr/share/nginx/html
-
   traefik:
 
     image: traefik:v3
