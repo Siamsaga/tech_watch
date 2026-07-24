@@ -148,6 +148,45 @@ services:
     volumes:
       - ./grafana:/var/lib/grafana
 
+  mongodb:
+    image: mongo:7
+    restart: unless-stopped
+
+    volumes:
+      - ./mongodb:/data/db
+
+  librechat:
+
+    image: ghcr.io/danny-avila/librechat:latest
+
+    restart: unless-stopped
+
+    depends_on:
+      - mongodb
+
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3080
+
+      MONGO_URI: mongodb://mongodb:27017/LibreChat
+
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENROUTER_KEY: ${OPENROUTER_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+
+    labels:
+      - traefik.enable=true
+
+      - traefik.http.routers.librechat.rule=Host(`chat.${DOMAIN}`)
+      - traefik.http.routers.librechat.entrypoints=websecure
+      - traefik.http.routers.librechat.tls=true
+      - traefik.http.routers.librechat.tls.certresolver=le
+
+      - traefik.http.services.librechat.loadbalancer.server.port=3080
+
+    volumes:
+      - ./librechat/images:/app/client/public/images
+      - ./librechat/uploads:/app/uploads
 volumes:
 
   portainer_data:
