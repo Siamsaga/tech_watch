@@ -156,15 +156,35 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
     volumes:
       - ./mongodb:/data/db
+    networks:
+      - librechat_network
 
+  summarizer:
+    image: ghcr.io/huggingface/text-generation-inference:1.4.3
+    container_name: librechat-summarizer
+    restart: unless-stopped
+    environment:
+      MODEL_ID: google/flan-t5-base
+      MAX_INPUT_LENGTH: 2048
+      MAX_TOTAL_TOKENS: 512
+    ports:
+      - "8080:80"
+    volumes:
+      - summarizer_cache:/data
+    networks:
+      - librechat_network
+      
   librechat:
     image: ghcr.io/danny-avila/librechat:latest  # Image officielle (évite les bugs)
+    container_name: librechat
     restart: unless-stopped
     depends_on:
       mongodb:
         condition: service_started  # MongoDB démarre vite avec --auth
       rag_api:
-
+        condition: service_started
+      summarizer:
+        condition: service_healthy
     environment:
       HOST: 0.0.0.0
       PORT: 3080
@@ -172,6 +192,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       OPENROUTER_KEY: ${OPENROUTER_KEY}
+      SUMMARIZER_URL: http://summarizer:80/generate
       MAX_FILE_SIZE: 20  # 20 Mo (corrige AMOUT)
       UPLOAD_DIR: /app/client/public/uploads
       ALLOWED_FILE_TYPES: png,jpeg,jpg,gif,webp,pdf
@@ -190,12 +211,15 @@ services:
       - ./librechat/librechat_images:/app/client/public/images:rw
       - ./librechat/librechat_uploads:/app/client/public/uploads:rw
       - ./librechat/librechat.yaml:/app/librechat.yaml:ro
+    networks:
+      - librechat_network
+
 
   rag_api:
     image: ghcr.io/danny-avila/librechat-rag-api-dev-lite:latest
     restart: unless-stopped
     environment:
-      RAG_API_URL: http://host.docker.internal:8000
+      RAG_API_URL: http://rag_api:8000
       RAG_OPENAI_API_KEY: ${RAG_OPENAI_API_KEY}
       EMBEDDINGS_PROVIDER: openai
     ports:
@@ -206,6 +230,17 @@ services:
       - "traefik.http.services.rag_api.loadbalancer.server.port=8000"
     volumes:
       - ./rag_data:/data
+    networks:
+      - librechat_network
+
+
 volumes:
 
   portainer_data:
+  mongodb_data:
+  rag_data:
+  summarizer_cache:
+
+networks:
+  librechat_network:
+    driver: bridge
