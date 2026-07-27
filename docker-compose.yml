@@ -151,37 +151,41 @@ services:
   mongodb:
     image: mongo:7
     restart: unless-stopped
-
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
     volumes:
       - ./mongodb:/data/db
 
   librechat:
-  image: ghcr.io/danny-avila/librechat:main  # Image officielle (évite les bugs)
-  restart: unless-stopped
-  depends_on:
-    mongodb:
-      condition: service_started  # MongoDB démarre vite avec --auth
-  environment:
-    HOST: 0.0.0.0
-    PORT: 3080
-    MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/LibreChat?authSource=admin
-    JWT_SECRET: ${JWT_SECRET}
-    JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
-    MAX_FILE_SIZE: 20  # 20 Mo (corrige AMOUT)
-    UPLOAD_DIR: /app/client/public/uploads
-    ALLOWED_FILE_TYPES: png,jpeg,jpg,gif,webp,pdf
-    # Activer stockage S3 (optionnel pour gros volumes)
-    FILE_STORAGE: local  # ou "s3" si besoin
-  labels:
-    - traefik.enable=true
-    - traefik.http.routers.librechat.rule=Host(`chat.${DOMAIN}`)
-    - traefik.http.routers.librechat.entrypoints=websecure
-    - traefik.http.routers.librechat.tls=true
-    - traefik.http.routers.librechat.tls.certresolver=le
-  volumes:
-    - librechat_images:/app/client/public/images
-    - librechat_uploads:/app/client/public/uploads
-    - ./librechat/librechat.yaml:/app/librechat.yaml:ro
+    image: ghcr.io/danny-avila/librechat:latest  # Image officielle (évite les bugs)
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_started  # MongoDB démarre vite avec --auth
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3080
+      MONGO_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/LibreChat?authSource=admin
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      MAX_FILE_SIZE: 20  # 20 Mo (corrige AMOUT)
+      UPLOAD_DIR: /app/client/public/uploads
+      ALLOWED_FILE_TYPES: png,jpeg,jpg,gif,webp,pdf
+      # Activer stockage S3 (optionnel pour gros volumes)
+      FILE_STORAGE: local  # ou "s3" si besoin
+        #ALLOW_REGISTRATION: "true"
+      ALLOW_EMAIL_LOGIN: "true"
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.librechat.rule=Host(`chat.${DOMAIN}`)
+      - traefik.http.routers.librechat.entrypoints=websecure
+      - traefik.http.routers.librechat.tls=true
+      - traefik.http.routers.librechat.tls.certresolver=le
+    volumes:
+      - ./librechat/librechat_images:/app/client/public/images
+      - ./librechat/librechat_uploads:/app/client/public/uploads
+      - ./librechat/librechat.yaml:/app/librechat.yaml:ro
 
 volumes:
 
