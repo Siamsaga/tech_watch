@@ -214,22 +214,35 @@ services:
     networks:
       - librechat_network
 
+  chroma:
+    image: chromadb/chroma:latest
+    restart: unless-stopped
+    volumes:
+      - ./chroma_data:/chroma/chroma
+    environment:
+      - CHROMA_SERVER_AUTHN_CREDENTIALS=${CHROMA_AUTH_TOKEN}
+      - CHROMA_SERVER_AUTHN_PROVIDER=chromadb.auth.token.TokenAuthServerProvider
+    networks:
+      - librechat_network
 
   rag_api:
     image: ghcr.io/danny-avila/librechat-rag-api-dev-lite:latest
-    restart: unless-stopped
     environment:
-      RAG_API_URL: http://rag_api:8000
+      RAG_VECTOR_DB_URL: http://chroma:8000
+      RAG_VECTOR_DB_COLLECTION: librechat_docs
+      RAG_EMBEDDINGS_PROVIDER: openai
       RAG_OPENAI_API_KEY: ${RAG_OPENAI_API_KEY}
-      EMBEDDINGS_PROVIDER: openai
+    depends_on:
+      - chroma
     ports:
       - "8000:8000"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.rag_api.rule=Host(`votre-domaine`) && PathPrefix(`/api/rag`)"
+      - "traefik.http.routers.rag_api.rule=Host(`siamsaga.fr`) && PathPrefix(`/api/rag`)"
       - "traefik.http.services.rag_api.loadbalancer.server.port=8000"
     volumes:
       - ./rag_data:/data
+      - ./rag_docs:/app/rag_docs
     networks:
       - librechat_network
 
