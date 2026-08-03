@@ -94,23 +94,25 @@ services:
   traefik:
 
     image: traefik:v3
-
     restart: unless-stopped
-
     command:
       - --api.dashboard=true
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
       - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure  # 🔹 Redirige HTTP → HTTPS
+      - --entrypoints.web.http.redirections.entrypoint.permanent=true
       - --entrypoints.websecure.address=:443
       - --certificatesresolvers.le.acme.email=${ACME_EMAIL}
       - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
       - --certificatesresolvers.le.acme.httpchallenge=true
       - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
+      - --log.level=INFO  # 🔹 Pour le débogage
+      - --accesslog=true  # 🔹 Active les logs d'accès
+
 
     labels:
     - traefik.enable=true
-
     - traefik.http.routers.dashboard.rule=Host(`traefik.${DOMAIN}`)
     - traefik.http.routers.dashboard.entrypoints=websecure
     - traefik.http.routers.dashboard.tls=true
@@ -132,6 +134,7 @@ services:
     networks:
       - default
       - librechat_network
+      - external_network
 
 
   grafana:
@@ -150,6 +153,29 @@ services:
 
     volumes:
       - ./grafana:/var/lib/grafana
+
+    networks:
+      - librechat_network
+      - external_network
+      - tech_watch_default
+
+  openrouter_exporter:
+    image: namelivia/openrouter-prometheus:latest
+    restart: unless-stopped
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}  # À définir dans ton .env
+      - PORT=8000
+    networks:
+      - librechat_network
+      - external_network
+      - tech_watch_default
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.openrouter_exporter.rule=Host(`openrouter-exporter.${DOMAIN}`)
+      - traefik.http.routers.openrouter_exporter.entrypoints=websecure
+      - traefik.http.routers.openrouter_exporter.tls=true
+      - traefik.http.routers.openrouter_exporter.tls.certresolver=le
+      - traefik.http.services.openrouter_exporter.loadbalancer.server.port=8000
 
   mongodb:
     image: mongo:7
@@ -206,5 +232,9 @@ volumes:
   mongodb_data:
 
 networks:
+  external_network:
+    external: true
+  tech_watch_default:
+    external: true
   librechat_network:
     driver: bridge
