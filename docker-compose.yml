@@ -129,6 +129,9 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./letsencrypt:/letsencrypt
+    networks:
+      - default
+      - librechat_network
 
 
   grafana:
@@ -159,54 +162,37 @@ services:
     networks:
       - librechat_network
 
-  summarizer:
-    image: ghcr.io/huggingface/text-generation-inference:1.4.3
-    container_name: librechat-summarizer
-    restart: unless-stopped
-    environment:
-      MODEL_ID: google/flan-t5-base
-      MAX_INPUT_LENGTH: 2048
-      MAX_TOTAL_TOKENS: 512
-    ports:
-      - "8080:80"
-    volumes:
-      - summarizer_cache:/data
-    networks:
-      - librechat_network
-      
   librechat:
     image: ghcr.io/danny-avila/librechat:latest  # Image officielle (évite les bugs)
     container_name: librechat
+    user: "1000:1000"
     restart: unless-stopped
     depends_on:
       mongodb:
         condition: service_started  # MongoDB démarre vite avec --auth
-      rag_api:
-        condition: service_started
-      summarizer:
-        condition: service_healthy
     environment:
+      PUID: 1000
+      PGID: 1000
       HOST: 0.0.0.0
       PORT: 3080
       MONGO_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/LibreChat?authSource=admin
       JWT_SECRET: ${JWT_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       OPENROUTER_KEY: ${OPENROUTER_KEY}
-      SUMMARIZER_URL: http://summarizer:80/generate
       MAX_FILE_SIZE: 20  # 20 Mo (corrige AMOUT)
       UPLOAD_DIR: /app/client/public/uploads
       ALLOWED_FILE_TYPES: png,jpeg,jpg,gif,webp,pdf
       # Activer stockage S3 (optionnel pour gros volumes)
       FILE_STORAGE: local  # ou "s3" si besoin
-        #ALLOW_REGISTRATION: "true"
       ALLOW_EMAIL_LOGIN: "true"
-      RAG_API_URL: http://rag_api:8000
     labels:
       - traefik.enable=true
+      - traefik.docker.network=librechat_network
       - traefik.http.routers.librechat.rule=Host(`chat.${DOMAIN}`)
       - traefik.http.routers.librechat.entrypoints=websecure
       - traefik.http.routers.librechat.tls=true
       - traefik.http.routers.librechat.tls.certresolver=le
+      - traefik.http.services.librechat.loadbalancer.server.port=3080
     volumes:
       - ./librechat/librechat_images:/app/client/public/images:rw
       - ./librechat/librechat_uploads:/app/client/public/uploads:rw
@@ -214,45 +200,10 @@ services:
     networks:
       - librechat_network
 
-  chroma:
-    image: chromadb/chroma:latest
-    restart: unless-stopped
-    volumes:
-      - ./chroma_data:/chroma/chroma
-    environment:
-      - CHROMA_SERVER_AUTHN_CREDENTIALS=${CHROMA_AUTH_TOKEN}
-      - CHROMA_SERVER_AUTHN_PROVIDER=chromadb.auth.token.TokenAuthServerProvider
-    networks:
-      - librechat_network
-
-  rag_api:
-    image: ghcr.io/danny-avila/librechat-rag-api-dev-lite:latest
-    environment:
-      RAG_VECTOR_DB_URL: http://chroma:8000
-      RAG_VECTOR_DB_COLLECTION: librechat_docs
-      RAG_EMBEDDINGS_PROVIDER: openai
-      RAG_OPENAI_API_KEY: ${RAG_OPENAI_API_KEY}
-    depends_on:
-      - chroma
-    ports:
-      - "8000:8000"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.rag_api.rule=Host(`siamsaga.fr`) && PathPrefix(`/api/rag`)"
-      - "traefik.http.services.rag_api.loadbalancer.server.port=8000"
-    volumes:
-      - ./rag_data:/data
-      - ./rag_docs:/app/rag_docs
-    networks:
-      - librechat_network
-
-
 volumes:
 
   portainer_data:
   mongodb_data:
-  rag_data:
-  summarizer_cache:
 
 networks:
   librechat_network:
